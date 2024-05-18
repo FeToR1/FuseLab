@@ -1,0 +1,16 @@
+
+services:
+  fuse_ubuntu:
+    image: fuse_ubuntu_image
+    build:
+      context: .
+      dockerfile: Dockerfile
+      
+    container_name: fuse_ubuntu
+    volumes:
+      - ./source:/source
+    stdin_open: true
+    tty: true
+
+
+    

@@ -10,5 +10,7 @@ docker exec -it fuse_ubuntu bash
 
 ``` bash
 cd /source
-<run code>
+make
+./main /filesystem
+cd /filesystem
 ```

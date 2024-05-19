@@ -3,13 +3,40 @@
 #include <fuse/fuse.h>
 
 #include <iostream>
+#include <cstring>
+#include <unistd.h>
 
 static void show_help(const char *progname) {
-    std::cerr << "usage: " << progname << " <mountpoint> [options]" << std::endl;
-}
+    std::cerr << "usage: " << progname << " <mountpoint> [options]\n";
+};
 
 
-static const struct fuse_operations my_fuse_oper = {};  
+static int my_fuse_getattr (const char* path, struct stat* stbuf) {
+    int res = 0;
+    std::cout << "PATH IS " << path << "\n";
+    std::memset(stbuf, '\0', sizeof(struct stat));
+
+    stbuf->st_mode =  S_IFDIR | 0755;
+    stbuf->st_nlink = 2;
+    stbuf->st_size = 4096;  
+    stbuf->st_uid = getuid();
+    stbuf->st_gid = getgid();
+    stbuf->st_atime = time(NULL);
+    stbuf->st_mtime = time(NULL);
+    return res;
+};
+
+static void *my_fuse_init(struct fuse_conn_info *conn) {
+    (void) conn;
+    std::cout << "INIT\n";
+    return NULL;
+};
+
+
+static const struct fuse_operations my_fuse_oper = {
+    .getattr = my_fuse_getattr,
+    .init = my_fuse_init,
+};  
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {

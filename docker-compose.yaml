@@ -9,8 +9,10 @@ services:
     container_name: fuse_ubuntu
     volumes:
       - ./source:/source
+      - ./filesystem:/filesystem
     stdin_open: true
     tty: true
+    privileged: true
 
 
     

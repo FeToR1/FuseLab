@@ -1,18 +1,15 @@
-
 services:
   fuse_ubuntu:
     image: fuse_ubuntu_image
     build:
       context: .
       dockerfile: Dockerfile
-      
+
     container_name: fuse_ubuntu
     volumes:
       - ./source:/source
       - ./filesystem:/filesystem
+      - ./py_source:/py_source
     stdin_open: true
     tty: true
     privileged: true
-
-
-    

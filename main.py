@@ -4,9 +4,30 @@ import errno
 
 from fuse import FUSE, FuseOSError, Operations
 
+IMG_FORMATS_CONVERT = {
+    ".jpg": ".png",
+    ".jpeg": ".png",
+    ".png": ".jpg",
+}
+
+def is_img(path)->bool:
+    for i in IMG_FORMATS_CONVERT.keys():
+        if path.endswith(i):
+            return True
+    return False
+
+def converted_name(path)->str:
+    for i in IMG_FORMATS_CONVERT.keys():
+        if path.endswith(i):
+            return path.replace(i, IMG_FORMATS_CONVERT[i])
+    return path
+
+def need_to_convert(path, full_path)->bool:
+    return is_img(path) and not os.path.isfile(os.path.join(full_path, converted_name(path)))
+
 
 class Passthrough(Operations):
-    def init(self, root):
+    def __init__(self, root):
         self.root = root
 
     def _full_path(self, partial):
@@ -30,8 +51,10 @@ class Passthrough(Operations):
         return os.chown(full_path, uid, gid)
 
     def getattr(self, path, fh=None):
+        print("getattr", path)
         full_path = self._full_path(path)
         st = os.lstat(full_path)
+        # if (os.path.isfile(full_path)):
         return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
                      'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
 
@@ -40,6 +63,9 @@ class Passthrough(Operations):
         dirents = ['.', '..']
         if os.path.isdir(full_path):
             dirents.extend(os.listdir(full_path))
+        for r in dirents:
+            if os.path.isfile(os.path.join(full_path, r)) and need_to_convert(r, full_path):
+                dirents.append(converted_name(r))
         for r in dirents:
             yield r
 

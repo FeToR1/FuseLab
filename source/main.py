@@ -32,10 +32,8 @@ class Passthrough(Operations):
         return os.chown(full_path, uid, gid)
 
     def getattr(self, path, fh=None):
-        print("getattr", path)
         full_path = self._full_path(path)
         if self.conv.is_converted(full_path):
-            print("getattr parent", self.conv.get_parent_name(full_path))
             st = os.lstat(self.conv.get_parent_name(full_path))
         else:
             st = os.lstat(full_path)
@@ -96,7 +94,7 @@ class Passthrough(Operations):
     # ============
 
     def open(self, path, flags):
-        full_path = self.conv.convert_if_needed(path)
+        full_path = self.conv.convert_if_needed(self._full_path(path))
         return os.open(full_path, flags)
 
     def create(self, path, mode, fi=None):
@@ -131,4 +129,3 @@ def main(mountpoint, root):
 
 if __name__ == '__main__':
     main(sys.argv[2], sys.argv[1])
-    # print(need_to_convert("test_img/fed.jpg"), converted_name("test_img/fed.jpg"), is_converted("test_img/fed.png"), get_parent_name("test_img/fed.png"))

@@ -23,8 +23,19 @@ def converted_name(path)->str:
     return path
 
 def need_to_convert(path)->bool:
-    return is_img(path) and not os.path.isfile(path)
+    return is_img(path) and os.path.exists(path)
 
+
+def is_converted(path)->bool:
+    for i in IMG_FORMATS_CONVERT.values():
+        if path.endswith(i) and not os.path.exists(path):
+            return True
+    return False
+
+def get_parent_name(path)->str:
+    for i in IMG_FORMATS_CONVERT.keys():
+        if path.replace(i, IMG_FORMATS_CONVERT[i]) != path and os.path.exists(path.replace(i, IMG_FORMATS_CONVERT[i])):
+            return path.replace(i, IMG_FORMATS_CONVERT[i])
 
 class Passthrough(Operations):
     def __init__(self, root):
@@ -53,8 +64,11 @@ class Passthrough(Operations):
     def getattr(self, path, fh=None):
         print("getattr", path)
         full_path = self._full_path(path)
-        st = os.lstat(full_path)
-        # if (os.path.isfile(full_path)):
+        if is_converted(full_path):
+            print("getattr parent", get_parent_name(full_path))
+            st = os.lstat(get_parent_name(full_path))
+        else:
+            st = os.lstat(full_path)
         return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
                      'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
 
@@ -147,3 +161,4 @@ def main(mountpoint, root):
 
 if __name__ == '__main__':
     main(sys.argv[2], sys.argv[1])
+    # print(need_to_convert("test_img/fed.jpg"), converted_name("test_img/fed.jpg"), is_converted("test_img/fed.png"), get_parent_name("test_img/fed.png"))

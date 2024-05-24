@@ -1,3 +1,2 @@
 venv
-test_converted
-test_img
+__pycache__

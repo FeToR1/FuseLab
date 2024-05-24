@@ -15,9 +15,7 @@ class PictureConverter:
     def convert_if_needed(self, path) -> str:
         if not self.is_converted(path):
             return path
-        print("called", path)
-        img = Image.open(self.get_parent_name(path))
-        img.save(path)
+        Image.open(self.get_parent_name(path)).convert('RGB').save(path)
 
         return path
 
@@ -47,3 +45,4 @@ class PictureConverter:
         for i in IMG_FORMATS_CONVERT.keys():
             if path.replace(i, IMG_FORMATS_CONVERT[i]) != path and os.path.exists(path.replace(i, IMG_FORMATS_CONVERT[i])):
                 return path.replace(i, IMG_FORMATS_CONVERT[i])
+        return path

@@ -13,13 +13,12 @@ class PictureConverter:
         pass
 
     def convert_if_needed(self, path) -> str:
-        if not self.need_to_convert(path):
+        if not self.is_converted(path):
             return path
-        
-        img = Image.open(path)
-        converted_img = self.converted_name(path)
-        img.save(converted_img)
-        return converted_img
+
+        converted_name = self.converted_name(path)
+        Image.open(converted_name).convert('RGB').save(path)
+        return path
 
     def is_img(self, path) -> bool:
         for i in IMG_FORMATS_CONVERT.keys():
@@ -34,7 +33,7 @@ class PictureConverter:
         return path
 
     def need_to_convert(self, path) -> bool:
-        return self.is_img(path) and os.path.exists(path)
+        return self.is_img(path) and os.path.exists(path) and not os.path.exists(self.converted_name(path))
 
 
     def is_converted(self, path) -> bool:

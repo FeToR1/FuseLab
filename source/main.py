@@ -32,10 +32,8 @@ class Passthrough(Operations):
         return os.chown(full_path, uid, gid)
 
     def getattr(self, path, fh=None):
-        print("getattr", path)
         full_path = self._full_path(path)
         if self.conv.is_converted(full_path):
-            print("getattr parent", self.conv.get_parent_name(full_path))
             st = os.lstat(self.conv.get_parent_name(full_path))
         else:
             st = os.lstat(full_path)
@@ -96,8 +94,11 @@ class Passthrough(Operations):
     # ============
 
     def open(self, path, flags):
-        full_path = self.conv.convert_if_needed(path)
-        return os.open(full_path, flags)
+        
+        full_path = self._full_path(path)
+        print(path, full_path)
+        new_path = self.conv.convert_if_needed(full_path)
+        return os.open(new_path, flags)
 
     def create(self, path, mode, fi=None):
         full_path = self._full_path(path)

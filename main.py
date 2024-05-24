@@ -1,5 +1,3 @@
-from future import with_statement
-
 import os
 import sys
 import errno

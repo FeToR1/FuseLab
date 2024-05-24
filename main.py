@@ -64,7 +64,7 @@ class Passthrough(Operations):
         if os.path.isdir(full_path):
             dirents.extend(os.listdir(full_path))
         for r in dirents:
-            if os.path.isfile(os.path.join(full_path, r)) and need_to_convert(r, full_path):
+            if os.path.isfile(os.path.join(full_path, r)) and need_to_convert(os.path.join(full_path, r)):
                 dirents.append(converted_name(r))
         for r in dirents:
             yield r

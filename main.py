@@ -22,8 +22,8 @@ def converted_name(path)->str:
             return path.replace(i, IMG_FORMATS_CONVERT[i])
     return path
 
-def need_to_convert(path, full_path)->bool:
-    return is_img(path) and not os.path.isfile(os.path.join(full_path, converted_name(path)))
+def need_to_convert(path)->bool:
+    return is_img(path) and not os.path.isfile(path)
 
 
 class Passthrough(Operations):

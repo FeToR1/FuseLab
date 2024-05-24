@@ -10,6 +10,7 @@ services:
       - ./source:/source
       - ./original_dir:/original_dir
       - ./mounted_dir:/mounted_dir
+    command: "python3 /source/main.py /original_dir /mounted_dir &" 
     stdin_open: true
     tty: true
     privileged: true

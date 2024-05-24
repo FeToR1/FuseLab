@@ -6,19 +6,16 @@ docker-compose up -d
 docker exec -it fuse_ubuntu bash
 ```
 
-# Ubuntu
-
-## Python
+# Linux
 
 ``` bash
-python3 /py_source/main.py /filesystem
-cd /filesystem
+mkdir -p /mounted_dir
+pip3 install -r requirements.txt
+python3 /source/main.py /original_dir /mounted_dir
+cd /mounted_dir
 ```
 
-## CPP
+# Windows
 
-``` bash
-make -C /source
-./source/main /filesystem
-cd /filesystem
-```
+1. Install normal OS
+2. PROFIT

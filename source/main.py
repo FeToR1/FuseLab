@@ -3,43 +3,13 @@ import sys
 import errno
 
 from fuse import FUSE, FuseOSError, Operations
+from utils import PictureConverter
 
-IMG_FORMATS_CONVERT = {
-    ".jpg": ".png",
-    ".jpeg": ".png",
-    ".png": ".jpg",
-}
-
-def is_img(path)->bool:
-    for i in IMG_FORMATS_CONVERT.keys():
-        if path.endswith(i):
-            return True
-    return False
-
-def converted_name(path)->str:
-    for i in IMG_FORMATS_CONVERT.keys():
-        if path.endswith(i):
-            return path.replace(i, IMG_FORMATS_CONVERT[i])
-    return path
-
-def need_to_convert(path)->bool:
-    return is_img(path) and os.path.exists(path)
-
-
-def is_converted(path)->bool:
-    for i in IMG_FORMATS_CONVERT.values():
-        if path.endswith(i) and not os.path.exists(path):
-            return True
-    return False
-
-def get_parent_name(path)->str:
-    for i in IMG_FORMATS_CONVERT.keys():
-        if path.replace(i, IMG_FORMATS_CONVERT[i]) != path and os.path.exists(path.replace(i, IMG_FORMATS_CONVERT[i])):
-            return path.replace(i, IMG_FORMATS_CONVERT[i])
 
 class Passthrough(Operations):
     def __init__(self, root):
         self.root = root
+        self.conv = PictureConverter()
 
     def _full_path(self, partial):
         if partial.startswith("/"):
@@ -64,9 +34,9 @@ class Passthrough(Operations):
     def getattr(self, path, fh=None):
         print("getattr", path)
         full_path = self._full_path(path)
-        if is_converted(full_path):
-            print("getattr parent", get_parent_name(full_path))
-            st = os.lstat(get_parent_name(full_path))
+        if self.conv.is_converted(full_path):
+            print("getattr parent", self.conv.get_parent_name(full_path))
+            st = os.lstat(self.conv.get_parent_name(full_path))
         else:
             st = os.lstat(full_path)
         return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
@@ -78,8 +48,8 @@ class Passthrough(Operations):
         if os.path.isdir(full_path):
             dirents.extend(os.listdir(full_path))
         for r in dirents:
-            if os.path.isfile(os.path.join(full_path, r)) and need_to_convert(os.path.join(full_path, r)):
-                dirents.append(converted_name(r))
+            if os.path.isfile(os.path.join(full_path, r)) and self.conv.need_to_convert(os.path.join(full_path, r)):
+                dirents.append(self.conv.converted_name(r))
         for r in dirents:
             yield r
 
@@ -126,7 +96,7 @@ class Passthrough(Operations):
     # ============
 
     def open(self, path, flags):
-        full_path = self._full_path(path)
+        full_path = self.conv.convert_if_needed(path)
         return os.open(full_path, flags)
 
     def create(self, path, mode, fi=None):

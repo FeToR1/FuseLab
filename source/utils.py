@@ -20,7 +20,6 @@ class PictureConverter:
         converted_img = self.converted_name(path)
         img.save(converted_img)
         return converted_img
-        
 
     def is_img(self, path) -> bool:
         for i in IMG_FORMATS_CONVERT.keys():

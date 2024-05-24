@@ -10,8 +10,6 @@ services:
       - ./source:/source
       - ./original_dir:/original_dir
       - ./mounted_dir:/mounted_dir
-    # command: "pip3 install -r /source/requirements.txt --break-system-packages"
-
     stdin_open: true
     tty: true
     privileged: true

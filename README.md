@@ -12,7 +12,6 @@ docker exec -it fuse_ubuntu bash
 mkdir -p /mounted_dir
 pip3 install -r requirements.txt
 python3 /source/main.py /original_dir /mounted_dir
-cd /mounted_dir
 ```
 
 # Windows

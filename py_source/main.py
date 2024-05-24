@@ -1,168 +1,125 @@
-#!/usr/bin/env python
-from __future__ import print_function, absolute_import, division
+from future import with_statement
 
-import logging
+import os
+import sys
+import errno
 
-from collections import defaultdict
-from errno import ENOENT
-from stat import S_IFMT, S_IMODE, S_IFDIR
-from time import time
-
-from fusell import FUSELL
-from fuse import FUSE
+from fuse import FUSE, FuseOSError, Operations
 
 
-class Memory(FUSELL):
-    def create_ino(self):
-        self.ino += 1
-        return self.ino
+class Passthrough(Operations):
+    def init(self, root):
+        self.root = root
 
-    def init(self, userdata, conn):
-        self.ino = 1
-        self.attr = defaultdict(dict)
-        self.data = defaultdict(bytes)
-        self.parent = {}
-        self.children = defaultdict(dict)
+    def _full_path(self, partial):
+        if partial.startswith("/"):
+            partial = partial[1:]
+        path = os.path.join(self.root, partial)
+        return path
 
-        self.attr[1] = dict(
-            st_ino=1,
-            st_mode=S_IFDIR | 0o777,
-            st_nlink=2)
-        self.parent[1] = 1
 
-    def getattr(self, req, ino, fi):
-        print('getattr:', ino)
-        attr = self.attr[ino]
-        if attr:
-            self.reply_attr(req, attr, 1.0)
+    def access(self, path, mode):
+        full_path = self._full_path(path)
+        if not os.access(full_path, mode):
+            raise FuseOSError(errno.EACCES)
+
+    def chmod(self, path, mode):
+        full_path = self._full_path(path)
+        return os.chmod(full_path, mode)
+
+    def chown(self, path, uid, gid):
+        full_path = self._full_path(path)
+        return os.chown(full_path, uid, gid)
+
+    def getattr(self, path, fh=None):
+        full_path = self._full_path(path)
+        st = os.lstat(full_path)
+        return dict((key, getattr(st, key)) for key in ('st_atime', 'st_ctime',
+                     'st_gid', 'st_mode', 'st_mtime', 'st_nlink', 'st_size', 'st_uid'))
+
+    def readdir(self, path, fh):
+        full_path = self._full_path(path)
+        dirents = ['.', '..']
+        if os.path.isdir(full_path):
+            dirents.extend(os.listdir(full_path))
+        for r in dirents:
+            yield r
+
+    def readlink(self, path):
+        pathname = os.readlink(self._full_path(path))
+        if pathname.startswith("/"):
+            return os.path.relpath(pathname, self.root)
         else:
-            self.reply_err(req, ENOENT)
+            return pathname
 
-    def lookup(self, req, parent, name):
-        print('lookup:', parent, name)
-        children = self.children[parent]
-        ino = children.get(name, 0)
-        attr = self.attr[ino]
+    def mknod(self, path, mode, dev):
+        return os.mknod(self._full_path(path), mode, dev)
 
-        print("aaaaaaaa", attr)
+    def rmdir(self, path):
+        full_path = self._full_path(path)
+        return os.rmdir(full_path)
 
-        if attr:
-            entry = dict(
-                ino=ino,
-                attr=attr,
-                attr_timeout=1.0,
-                entry_timeout=1.0)
-            self.reply_entry(req, entry)
-        else:
-            self.reply_err(req, ENOENT)
+    def mkdir(self, path, mode):
+        return os.mkdir(self._full_path(path), mode)
 
-    def mkdir(self, req, parent, name, mode):
-        print('mkdir:', parent, name)
-        ino = self.create_ino()
-        ctx = self.req_ctx(req)
-        now = time()
-        attr = dict(
-            st_ino=ino,
-            st_mode=S_IFDIR | mode,
-            st_nlink=2,
-            st_uid=ctx['uid'],
-            st_gid=ctx['gid'],
-            st_atime=now,
-            st_mtime=now,
-            st_ctime=now)
+    def statfs(self, path):
+        full_path = self._full_path(path)
+        stv = os.statvfs(full_path)
+        return dict((key, getattr(stv, key)) for key in ('f_bavail', 'f_bfree',
+            'f_blocks', 'f_bsize', 'f_favail', 'f_ffree', 'f_files', 'f_flag',
+            'f_frsize', 'f_namemax'))
 
-        self.attr[ino] = attr
-        self.attr[parent]['st_nlink'] += 1
-        self.parent[ino] = parent
-        self.children[parent][name] = ino
+    def unlink(self, path):
+        return os.unlink(self._full_path(path))
 
-        entry = dict(
-            ino=ino,
-            attr=attr,
-            attr_timeout=1.0,
-            entry_timeout=1.0)
-        self.reply_entry(req, entry)
+    def symlink(self, name, target):
+        return os.symlink(name, self._full_path(target))
 
-    def mknod(self, req, parent, name, mode, rdev):
-        print('mknod:', parent, name)
-        ino = self.create_ino()
-        ctx = self.req_ctx(req)
-        now = time()
-        attr = dict(
-            st_ino=ino,
-            st_mode=mode,
-            st_nlink=1,
-            st_uid=ctx['uid'],
-            st_gid=ctx['gid'],
-            st_rdev=rdev,
-            st_atime=now,
-            st_mtime=now,
-            st_ctime=now)
+    def rename(self, old, new):
+        return os.rename(self._full_path(old), self._full_path(new))
 
-        self.attr[ino] = attr
-        self.attr[parent]['st_nlink'] += 1
-        self.children[parent][name] = ino
+    def link(self, target, name):
+        return os.link(self._full_path(target), self._full_path(name))
 
-        entry = dict(
-            ino=ino,
-            attr=attr,
-            attr_timeout=1.0,
-            entry_timeout=1.0)
-        self.reply_entry(req, entry)
+    def utimens(self, path, times=None):
+        return os.utime(self._full_path(path), times)
 
-    def open(self, req, ino, fi):
-        print('open:', ino)
-        self.reply_open(req, fi)
+    # File methods
+    # ============
 
-    def read(self, req, ino, size, off, fi):
-        print('read:', ino, size, off)
-        buf = self.data[ino][off:(off + size)]
-        self.reply_buf(req, buf)
+    def open(self, path, flags):
+        full_path = self._full_path(path)
+        return os.open(full_path, flags)
 
-    def readdir(self, req, ino, size, off, fi):
-        print('readdir:', ino)
-        parent = self.parent[ino]
-        entries = [
-            ('.', {'st_ino': ino, 'st_mode': S_IFDIR}),
-            ('..', {'st_ino': parent, 'st_mode': S_IFDIR})]
-        for name, child in self.children[ino].items():
-            entries.append((name, self.attr[child]))
-            if name.endswith('.png'):
-                entries.append((name.replace('.png', '.jpg'), self.attr[child]))
-            
-        self.reply_readdir(req, size, off, entries)
+    def create(self, path, mode, fi=None):
+        full_path = self._full_path(path)
+        return os.open(full_path, os.O_WRONLY | os.O_CREAT, mode)
 
-    def rename(self, req, parent, name, newparent, newname):
-        print('rename:', parent, name, newparent, newname)
-        ino = self.children[parent].pop(name)
-        self.children[newparent][newname] = ino
-        self.parent[ino] = newparent
-        self.reply_err(req, 0)
+    def read(self, path, length, offset, fh):
+        os.lseek(fh, offset, os.SEEK_SET)
+        return os.read(fh, length)
 
-    def setattr(self, req, ino, attr, to_set, fi):
-        print('setattr:', ino, to_set)
-        a = self.attr[ino]
-        for key in to_set:
-            if key == 'st_mode':
-                # Keep the old file type bit fields
-                a['st_mode'] = S_IFMT(a['st_mode']) | S_IMODE(attr['st_mode'])
-            else:
-                a[key] = attr[key]
-        self.attr[ino] = a
-        self.reply_attr(req, a, 1.0)
+    def write(self, path, buf, offset, fh):
+        os.lseek(fh, offset, os.SEEK_SET)
+        return os.write(fh, buf)
 
-    def write(self, req, ino, buf, off, fi):
-        print('write:', ino, off, len(buf))
-        self.data[ino] = self.data[ino][:off] + buf
-        self.attr[ino]['st_size'] = len(self.data[ino])
-        self.reply_write(req, len(buf))
+    def truncate(self, path, length, fh=None):
+        full_path = self._full_path(path)
+        with open(full_path, 'r+') as f:
+            f.truncate(length)
 
+    def flush(self, path, fh):
+        return os.fsync(fh)
+
+    def release(self, path, fh):
+        return os.close(fh)
+
+    def fsync(self, path, fdatasync, fh):
+        return self.flush(path, fh)
+
+
+def main(mountpoint, root):
+    FUSE(Passthrough(root), mountpoint, nothreads=True, foreground=True)
 
 if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('mount')
-    args = parser.parse_args()
-
-    logging.basicConfig(level=logging.DEBUG)
-    fuse = Memory(args.mount)
+    main(sys.argv[2], sys.argv[1])

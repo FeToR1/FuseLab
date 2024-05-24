@@ -8,8 +8,10 @@ services:
     container_name: fuse_ubuntu
     volumes:
       - ./source:/source
-      - ./filesystem:/filesystem
-      - ./py_source:/py_source
+      - ./original_dir:/original_dir
+      - ./mounted_dir:/mounted_dir
+    # command: "pip3 install -r /source/requirements.txt --break-system-packages"
+
     stdin_open: true
     tty: true
     privileged: true
